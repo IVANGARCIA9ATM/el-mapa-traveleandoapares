@@ -135,7 +135,7 @@
                     <label><span class="label-icon">📅</span> Fecha de la Ruta</label>
                     <div class="date-row">
                         <input type="date" id="diaFecha">
-                        <button type="button" class="btn-small" onclick="document.getElementById('diaFecha').focus()">Elegir fecha</button>
+                        <button type="button" class="btn-small" onclick="abrirSelectorFecha()">Elegir fecha</button>
                     </div>
                 </div>
             </div>
@@ -205,6 +205,12 @@
         const fecha = parseFechaDia(fechaValor);
         if (isNaN(fecha)) return fechaValor || '';
         return fecha.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+    }
+
+    function abrirSelectorFecha() {
+        const input = document.getElementById('diaFecha');
+        input.showPicker?.();
+        input.focus();
     }
 
     function inicializarMapa() {
