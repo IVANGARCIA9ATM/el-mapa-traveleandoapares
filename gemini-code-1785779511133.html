@@ -37,6 +37,10 @@
         .form-group { margin-bottom: 12px; }
         .form-group label { display: flex; align-items: center; gap: 8px; font-size: 0.72rem; font-weight: 700; color: #666; margin-bottom: 4px; text-transform: uppercase; }
         .label-icon { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 5px; background: rgba(0,0,0,0.06); color: #007aff; font-size: 0.85rem; }
+        .date-row { display: flex; gap: 10px; align-items: center; }
+        .date-row input { flex: 1; }
+        .btn-small { padding: 10px 14px; background: #007aff; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 0.88rem; }
+        .btn-small:hover { background: #005ecb; }
         .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px; border: 1px solid #c7c7cc; border-radius: 8px; font-size: 0.88rem; background: white; }
         .item-title { font-weight: 700; font-size: 1rem; margin-bottom: 2px; padding-right: 50px; color: #1c1c1e; display: flex; align-items: center; gap: 8px; }
         .title-icon { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 8px; background: #007aff; color: white; font-size: 0.95rem; }
@@ -128,8 +132,11 @@
                     </select>
                 </div>
                 <div class="form-group">
-                    <label><span class="label-icon">📅</span> Día de la Ruta</label>
-                    <select id="dia"></select>
+                    <label><span class="label-icon">📅</span> Fecha de la Ruta</label>
+                    <div class="date-row">
+                        <input type="date" id="diaFecha">
+                        <button type="button" class="btn-small" onclick="document.getElementById('diaFecha').focus()">Elegir fecha</button>
+                    </div>
                 </div>
             </div>
 
@@ -155,14 +162,8 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    // Rellenar días del 1 al 20
-    const selectDia = document.getElementById('dia');
-    for (let i = 1; i <= 20; i++) {
-        const option = document.createElement('option');
-        option.value = `Día ${i}`;
-        option.innerText = `Día ${i}`;
-        selectDia.appendChild(option);
-    }
+    const inputDiaFecha = document.getElementById('diaFecha');
+    inputDiaFecha.value = new Date().toISOString().slice(0, 10);
 
     let paradas = JSON.parse(localStorage.getItem('mi_ruta_raya')) || [];
     let mapa, capaMarcadores, capaLineas;
@@ -185,6 +186,26 @@
         consejo: '🧠',
         ruta: '🗺️'
     };
+
+    function parseFechaDia(diaValor) {
+        if (!diaValor) return new Date(0);
+        const fecha = new Date(diaValor);
+        if (!isNaN(fecha)) return fecha;
+        const match = diaValor.match(/D[ií]a\s*(\d+)/i);
+        if (match) {
+            const diaNumero = parseInt(match[1], 10);
+            const fechaActual = new Date();
+            fechaActual.setDate(diaNumero);
+            return fechaActual;
+        }
+        return new Date(0);
+    }
+
+    function formatDate(fechaValor) {
+        const fecha = parseFechaDia(fechaValor);
+        if (isNaN(fecha)) return fechaValor || '';
+        return fecha.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+    }
 
     function inicializarMapa() {
         mapa = L.map('mapaPrincipal').setView([40.4167, -3.7037], 5);
@@ -221,7 +242,7 @@
         const nombre = document.getElementById('nombre').value.trim();
         const ubicacion = document.getElementById('ubicacion').value.trim();
         const categoria = document.getElementById('categoria').value;
-        const dia = document.getElementById('dia').value;
+        const dia = document.getElementById('diaFecha').value;
         const descripcion = document.getElementById('descripcion').value.trim();
         const fotosInput = document.getElementById('fotos');
         const btnAdd = document.getElementById('btnAdd');
@@ -359,7 +380,7 @@
 
         if (paradas.length === 0) return;
 
-        paradas.sort((a, b) => parseInt(a.dia.replace('Día ', '')) - parseInt(b.dia.replace('Día ', '')));
+        paradas.sort((a, b) => parseFechaDia(a.dia) - parseFechaDia(b.dia));
 
         const todasLasCoordenadas = [];
         let contadorGlobal = 1;
@@ -376,7 +397,7 @@
             });
 
             const marker = L.marker(latLng, { icon: customIcon })
-                .bindPopup(`<b>${item.dia} - Parada ${contadorGlobal}: ${item.nombre}</b><br>📍 ${item.ubicacion}`);
+                .bindPopup(`<b>${formatDate(item.dia)} - Parada ${contadorGlobal}: ${item.nombre}</b><br>📍 ${item.ubicacion}`);
             
             capaMarcadores.addLayer(marker);
             contadorGlobal++;
@@ -407,7 +428,7 @@
             return;
         }
 
-        paradas.sort((a, b) => parseInt(a.dia.replace('Día ', '')) - parseInt(b.dia.replace('Día ', '')));
+        paradas.sort((a, b) => parseFechaDia(a.dia) - parseFechaDia(b.dia));
 
         const porDias = {};
         paradas.forEach(p => {
@@ -420,7 +441,7 @@
         for (const dia in porDias) {
             const grupo = document.createElement('div');
             grupo.className = 'day-group';
-            grupo.innerHTML = `<div class="day-title"><span>📅 ${dia}</span> <span style="font-size:0.8rem; color:#666; font-weight:normal;">${porDias[dia].length} punto(s)</span></div>`;
+            grupo.innerHTML = `<div class="day-title"><span>📅 ${formatDate(dia)}</span> <span style="font-size:0.8rem; color:#666; font-weight:normal;">${porDias[dia].length} punto(s)</span></div>`;
 
             porDias[dia].forEach((item) => {
                 const card = document.createElement('div');
