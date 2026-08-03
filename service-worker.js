@@ -1,7 +1,10 @@
-const CACHE_NAME = 'el-mapa-cache-v1';
+const CACHE_NAME = 'el-mapa-cache-v2';
 const URLS_TO_CACHE = [
-  '/gemini-code-1785779511133.html',
-  '/'
+  './gemini-code-1785779511133.html',
+  './manifest.json',
+  './icons/icon-192.svg',
+  './icons/icon-512.svg',
+  './'
 ];
 
 self.addEventListener('install', event => {
