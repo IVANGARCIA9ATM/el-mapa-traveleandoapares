@@ -56,6 +56,10 @@
         .item-title { font-weight: 700; font-size: 1rem; margin-bottom: 2px; padding-right: 50px; color: #1c1c1e; }
         .item-location { font-size: 0.82rem; color: #007aff; font-weight: 600; margin-bottom: 8px; }
         .item-desc { font-size: 0.88rem; color: #3a3a3c; line-height: 1.4; background: #f8f9fa; padding: 8px 10px; border-radius: 6px; border-left: 3px solid #ddd; }
+        .item-photos { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+        .item-photos img { width: calc(33.333% - 6px); border-radius: 10px; object-fit: cover; height: 100px; }
+        .item-preview { position: relative; display: inline-block; }
+        .item-preview button { position: absolute; top: 6px; right: 6px; border: none; background: rgba(255,255,255,0.9); border-radius: 50%; width: 22px; height: 22px; color: #ff3b30; cursor: pointer; font-weight: bold; }
         .item-delete { position: absolute; right: 14px; top: 12px; color: #ff3b30; cursor: pointer; font-size: 0.9rem; font-weight: bold; }
 
         /* Categorías */
@@ -131,6 +135,13 @@
                 <textarea id="descripcion" rows="2" placeholder="Ej: Visitar por la mañana."></textarea>
             </div>
 
+            <div class="form-group">
+                <label>Fotos del sitio (opcional)</label>
+                <input type="file" id="fotos" accept="image/*" multiple onchange="mostrarVistaPreviaFotos()">
+                <small style="display:block; color:#6e6e73; margin-top:6px;">Puedes subir hasta 3 fotos.</small>
+                <div id="previewFotos" class="item-photos" style="margin-top: 12px;"></div>
+            </div>
+
             <button class="btn-add" id="btnAdd" onclick="agregarParada()">Añadir Parada y Trazar Raya</button>
         </div>
 
@@ -152,6 +163,7 @@
 
     let paradas = JSON.parse(localStorage.getItem('mi_ruta_raya')) || [];
     let mapa, capaMarcadores, capaLineas;
+    let previewFotosSeleccionadas = [];
 
     const nombresCategorias = {
         interes: "Lugar de Interés",
@@ -199,6 +211,7 @@
         const categoria = document.getElementById('categoria').value;
         const dia = document.getElementById('dia').value;
         const descripcion = document.getElementById('descripcion').value.trim();
+        const fotosInput = document.getElementById('fotos');
         const btnAdd = document.getElementById('btnAdd');
 
         if (!nombre && !ubicacion) {
@@ -224,6 +237,11 @@
             return;
         }
 
+        const fotos = previewFotosSeleccionadas.slice(0, 3);
+
+        document.getElementById('previewFotos').innerHTML = '';
+        previewFotosSeleccionadas = [];
+
         paradas.push({ 
             id: Date.now(), 
             nombre: nombre || ubicacion, 
@@ -232,7 +250,8 @@
             dia, 
             lat: coords.lat, 
             lng: coords.lng, 
-            descripcion: descripcion || "Sin observaciones guardadas."
+            descripcion: descripcion || "Sin observaciones guardadas.",
+            fotos: fotos
         });
 
         guardarEnMemoria();
@@ -242,6 +261,7 @@
         document.getElementById('nombre').value = '';
         document.getElementById('ubicacion').value = '';
         document.getElementById('descripcion').value = '';
+        fotosInput.value = '';
     }
 
     function eliminarParada(id, e) {
@@ -258,6 +278,67 @@
     function centrarMapaEn(lat, lng) {
         mapa.setView([lat, lng], 15, { animate: true });
         window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function mostrarVistaPreviaFotos() {
+        const fotosInput = document.getElementById('fotos');
+        const preview = document.getElementById('previewFotos');
+        preview.innerHTML = '';
+        previewFotosSeleccionadas = [];
+
+        Array.from(fotosInput.files).slice(0, 3).forEach((file, index) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+                const src = reader.result;
+                previewFotosSeleccionadas.push(src);
+
+                const wrapper = document.createElement('div');
+                wrapper.className = 'item-preview';
+
+                const img = document.createElement('img');
+                img.src = src;
+                img.alt = 'Vista previa de foto';
+
+                const btnRemove = document.createElement('button');
+                btnRemove.type = 'button';
+                btnRemove.innerText = '×';
+                btnRemove.onclick = (e) => {
+                    e.stopPropagation();
+                    previewFotosSeleccionadas.splice(index, 1);
+                    actualizarVistaPreviaFotos(preview);
+                };
+
+                wrapper.appendChild(img);
+                wrapper.appendChild(btnRemove);
+                preview.appendChild(wrapper);
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function actualizarVistaPreviaFotos(preview) {
+        preview.innerHTML = '';
+        previewFotosSeleccionadas.slice(0, 3).forEach((src, index) => {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'item-preview';
+
+            const img = document.createElement('img');
+            img.src = src;
+            img.alt = 'Vista previa de foto';
+
+            const btnRemove = document.createElement('button');
+            btnRemove.type = 'button';
+            btnRemove.innerText = '×';
+            btnRemove.onclick = (e) => {
+                e.stopPropagation();
+                previewFotosSeleccionadas.splice(index, 1);
+                actualizarVistaPreviaFotos(preview);
+            };
+
+            wrapper.appendChild(img);
+            wrapper.appendChild(btnRemove);
+            preview.appendChild(wrapper);
+        });
     }
 
     function actualizarMapaYRuta() {
@@ -334,6 +415,11 @@
                 card.className = `item-card cat-${item.categoria}`;
                 card.onclick = () => centrarMapaEn(item.lat, item.lng);
 
+                let fotosHtml = '';
+                if (item.fotos && item.fotos.length > 0) {
+                    fotosHtml = `<div class="item-photos">${item.fotos.map(src => `<img src="${src}" alt="Foto del sitio">`).join('')}</div>`;
+                }
+
                 card.innerHTML = `
                     <span class="item-delete" onclick="eliminarParada(${item.id}, event)">✕</span>
                     <div class="item-number">${contadorGlobal}</div>
@@ -341,6 +427,7 @@
                     <div class="item-title">${item.nombre}</div>
                     <div class="item-location">📍 ${item.ubicacion} • <span style="font-size:0.75rem; text-decoration:underline;">Ver en mapa</span></div>
                     <div class="item-desc"><strong>📝 Desglose / Notas:</strong><br>${item.descripcion}</div>
+                    ${fotosHtml}
                 `;
                 grupo.appendChild(card);
                 contadorGlobal++;
