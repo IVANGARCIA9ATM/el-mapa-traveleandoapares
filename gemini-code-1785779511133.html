@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>El mapa de @traveleandoapares</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        body { background: #f2f2f7; color: #1c1c1e; padding: 15px; display: flex; justify-content: center; }
+        
+        .app-container { width: 100%; max-width: 650px; background: white; border-radius: 16px; box-shadow: 0 4px 25px rgba(0,0,0,0.1); overflow: hidden; }
+        
+        .header { background: #1c1c1e; color: white; padding: 20px; text-align: center; }
+        .header h1 { font-size: 1.3rem; margin-bottom: 4px; }
+        .header p { font-size: 0.85rem; opacity: 0.7; }
+
+        /* Mapa Principal */
+        #mapaPrincipal { height: 360px; width: 100%; border-bottom: 2px solid #e5e5ea; background: #e5e5ea; }
+
+        .content { padding: 18px; }
+
+        /* Botón de Exportar a PDF */
+        .btn-pdf { width: 100%; padding: 12px; background: #34c759; color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 0.95rem; cursor: pointer; margin-bottom: 20px; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 2px 8px rgba(52, 199, 89, 0.3); }
+        .btn-pdf:hover { background: #28a745; }
+
+        /* Formulario */
+        .form-card { background: #f9f9fb; border: 1px solid #e5e5ea; border-radius: 12px; padding: 16px; margin-bottom: 25px; }
+        .form-card h2 { font-size: 0.95rem; margin-bottom: 12px; color: #007aff; }
+        
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; font-size: 0.72rem; font-weight: 700; color: #666; margin-bottom: 4px; text-transform: uppercase; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px; border: 1px solid #c7c7cc; border-radius: 8px; font-size: 0.88rem; background: white; }
+        
+        .row { display: flex; gap: 10px; }
+        .row .form-group { flex: 1; }
+
+        .btn-add { width: 100%; padding: 12px; background: #007aff; color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 0.9rem; cursor: pointer; transition: background 0.2s; }
+        .btn-add:disabled { background: #8e8e93; cursor: not-allowed; }
+
+        /* Desglose de Paradas */
+        .day-group { margin-bottom: 24px; page-break-inside: avoid; }
+        .day-title { font-size: 1.05rem; font-weight: 800; color: #1c1c1e; margin-bottom: 12px; padding-bottom: 4px; border-bottom: 2px solid #007aff; display: flex; justify-content: space-between; align-items: center; }
+
+        .item-card { background: white; border: 1px solid #e5e5ea; border-radius: 12px; padding: 14px; margin-bottom: 10px; border-left: 6px solid #ccc; position: relative; cursor: pointer; transition: transform 0.1s; page-break-inside: avoid; }
+        .item-card:hover { transform: translateY(-2px); border-color: #007aff; }
+        
+        .item-number { position: absolute; right: 40px; top: 12px; background: #007aff; color: white; font-weight: bold; font-size: 0.75rem; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        .item-badge { display: inline-block; font-size: 0.68rem; font-weight: 800; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; color: white; margin-bottom: 6px; }
+        .item-title { font-weight: 700; font-size: 1rem; margin-bottom: 2px; padding-right: 50px; color: #1c1c1e; }
+        .item-location { font-size: 0.82rem; color: #007aff; font-weight: 600; margin-bottom: 8px; }
+        .item-desc { font-size: 0.88rem; color: #3a3a3c; line-height: 1.4; background: #f8f9fa; padding: 8px 10px; border-radius: 6px; border-left: 3px solid #ddd; }
+        .item-delete { position: absolute; right: 14px; top: 12px; color: #ff3b30; cursor: pointer; font-size: 0.9rem; font-weight: bold; }
+
+        /* Categorías */
+        .cat-ruta { border-left-color: #34c759; } .badge-ruta { background-color: #34c759; }
+        .cat-comida { border-left-color: #ff9500; } .badge-comida { background-color: #ff9500; }
+        .cat-interes { border-left-color: #007aff; } .badge-interes { background-color: #007aff; }
+        .cat-curioso { border-left-color: #af52de; } .badge-curioso { background-color: #af52de; }
+        .cat-alojamiento { border-left-color: #ffcc00; } .badge-alojamiento { background-color: #ffcc00; }
+        .cat-consejo { border-left-color: #ff3b30; } .badge-consejo { background-color: #ff3b30; }
+
+        /* Icono del Mapa */
+        .custom-map-icon { background: #007aff; color: white; font-weight: bold; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.4); text-align: center; line-height: 24px; font-size: 13px; }
+
+        /* ESTILOS EXCLUSIVOS PARA IMPRESIÓN / DESCARGA A PDF */
+        @media print {
+            body { background: white; padding: 0; }
+            .app-container { box-shadow: none; max-width: 100%; border-radius: 0; }
+            .form-card, .btn-pdf, .item-delete, .item-location span { display: none !important; }
+            #mapaPrincipal { height: 400px; page-break-after: avoid; }
+            .item-card { border: 1px solid #ccc !important; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <div class="header">
+        <h1>🗺️ El mapa de @traveleandoapares</h1>
+        <p>Conexión continua punto a punto en el mapa</p>
+    </div>
+
+    <!-- MAPA PRINCIPAL -->
+    <div id="mapaPrincipal"></div>
+
+    <div class="content">
+        <!-- BOTÓN DE DESCARGAR EN PDF -->
+        <button class="btn-pdf" onclick="descargarPDF()">📄 Descargar Ruta en PDF</button>
+
+        <!-- Formulario -->
+        <div class="form-card">
+            <h2>➕ Añadir Parada a la Ruta</h2>
+            
+            <div class="form-group">
+                <label>Nombre del Lugar</label>
+                <input type="text" id="nombre" placeholder="Ej: Puerta del Sol">
+            </div>
+
+            <div class="form-group">
+                <label>Ciudad o Dirección</label>
+                <input type="text" id="ubicacion" placeholder="Ej: Madrid, España">
+            </div>
+
+            <div class="row">
+                <div class="form-group">
+                    <label>Categoría</label>
+                    <select id="categoria">
+                        <option value="interes">Lugar de Interés</option>
+                        <option value="comida">Comida / Restaurante</option>
+                        <option value="curioso">Sitio Curioso</option>
+                        <option value="alojamiento">Alojamiento</option>
+                        <option value="consejo">Consejo Práctico</option>
+                        <option value="ruta">Ruta / Trayecto</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Día de la Ruta</label>
+                    <select id="dia"></select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Desglose / Notas del Sitio</label>
+                <textarea id="descripcion" rows="2" placeholder="Ej: Visitar por la mañana."></textarea>
+            </div>
+
+            <button class="btn-add" id="btnAdd" onclick="agregarParada()">Añadir Parada y Trazar Raya</button>
+        </div>
+
+        <!-- LISTA CON DESGLOSE -->
+        <div id="listaParadas"></div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    // Rellenar días del 1 al 20
+    const selectDia = document.getElementById('dia');
+    for (let i = 1; i <= 20; i++) {
+        const option = document.createElement('option');
+        option.value = `Día ${i}`;
+        option.innerText = `Día ${i}`;
+        selectDia.appendChild(option);
+    }
+
+    let paradas = JSON.parse(localStorage.getItem('mi_ruta_raya')) || [];
+    let mapa, capaMarcadores, capaLineas;
+
+    const nombresCategorias = {
+        interes: "Lugar de Interés",
+        comida: "Comida / Restaurante",
+        curioso: "Sitio Curioso",
+        alojamiento: "Alojamiento",
+        consejo: "Consejo Práctico",
+        ruta: "Ruta / Trayecto"
+    };
+
+    function inicializarMapa() {
+        mapa = L.map('mapaPrincipal').setView([40.4167, -3.7037], 5);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapa);
+        
+        capaLineas = L.layerGroup().addTo(mapa);
+        capaMarcadores = L.layerGroup().addTo(mapa);
+
+        actualizarMapaYRuta();
+    }
+
+    function guardarEnMemoria() {
+        localStorage.setItem('mi_ruta_raya', JSON.stringify(paradas));
+    }
+
+    async function obtenerCoordenadas(texto) {
+        if (!texto) return null;
+        try {
+            const url = `https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?f=json&singleLine=${encodeURIComponent(texto)}&maxLocations=1`;
+            const respuesta = await fetch(url);
+            const datos = await respuesta.json();
+            
+            if (datos && datos.candidates && datos.candidates.length > 0) {
+                const loc = datos.candidates[0].location;
+                return { lat: loc.y, lng: loc.x };
+            }
+        } catch (error) {
+            console.error("Error geolocalizando:", error);
+        }
+        return null;
+    }
+
+    async function agregarParada() {
+        const nombre = document.getElementById('nombre').value.trim();
+        const ubicacion = document.getElementById('ubicacion').value.trim();
+        const categoria = document.getElementById('categoria').value;
+        const dia = document.getElementById('dia').value;
+        const descripcion = document.getElementById('descripcion').value.trim();
+        const btnAdd = document.getElementById('btnAdd');
+
+        if (!nombre && !ubicacion) {
+            alert("Escribe al menos el nombre del lugar o la ciudad.");
+            return;
+        }
+
+        btnAdd.innerText = "🔍 Localizando en el mapa...";
+        btnAdd.disabled = true;
+
+        let textoBuscado = ubicacion ? ubicacion : nombre;
+        let coords = await obtenerCoordenadas(textoBuscado);
+
+        if (!coords && ubicacion && nombre) {
+            coords = await obtenerCoordenadas(`${nombre}, ${ubicacion}`);
+        }
+
+        btnAdd.innerText = "Añadir Parada y Trazar Raya";
+        btnAdd.disabled = false;
+
+        if (!coords) {
+            alert(`No pudimos encontrar "${textoBuscado}". Escribe la ciudad claramente.`);
+            return;
+        }
+
+        paradas.push({ 
+            id: Date.now(), 
+            nombre: nombre || ubicacion, 
+            ubicacion: ubicacion || nombre, 
+            categoria, 
+            dia, 
+            lat: coords.lat, 
+            lng: coords.lng, 
+            descripcion: descripcion || "Sin observaciones guardadas."
+        });
+
+        guardarEnMemoria();
+        renderizarLista();
+        actualizarMapaYRuta();
+
+        document.getElementById('nombre').value = '';
+        document.getElementById('ubicacion').value = '';
+        document.getElementById('descripcion').value = '';
+    }
+
+    function eliminarParada(id, e) {
+        e.stopPropagation();
+        const idx = paradas.findIndex(p => p.id === id);
+        if (idx !== -1) {
+            paradas.splice(idx, 1);
+            guardarEnMemoria();
+            renderizarLista();
+            actualizarMapaYRuta();
+        }
+    }
+
+    function centrarMapaEn(lat, lng) {
+        mapa.setView([lat, lng], 15, { animate: true });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function actualizarMapaYRuta() {
+        capaMarcadores.clearLayers();
+        capaLineas.clearLayers();
+
+        if (paradas.length === 0) return;
+
+        paradas.sort((a, b) => parseInt(a.dia.replace('Día ', '')) - parseInt(b.dia.replace('Día ', '')));
+
+        const todasLasCoordenadas = [];
+        let contadorGlobal = 1;
+
+        paradas.forEach((item) => {
+            const latLng = [item.lat, item.lng];
+            todasLasCoordenadas.push(latLng);
+
+            const customIcon = L.divIcon({
+                className: 'custom-map-icon',
+                html: `${contadorGlobal}`,
+                iconSize: [26, 26],
+                iconAnchor: [13, 13]
+            });
+
+            const marker = L.marker(latLng, { icon: customIcon })
+                .bindPopup(`<b>${item.dia} - Parada ${contadorGlobal}: ${item.nombre}</b><br>📍 ${item.ubicacion}`);
+            
+            capaMarcadores.addLayer(marker);
+            contadorGlobal++;
+        });
+
+        if (todasLasCoordenadas.length >= 2) {
+            const rayaContinua = L.polyline(todasLasCoordenadas, {
+                color: '#007aff',
+                weight: 5,
+                opacity: 0.85,
+                lineCap: 'round',
+                lineJoin: 'round'
+            });
+            capaLineas.addLayer(rayaContinua);
+        }
+
+        if (todasLasCoordenadas.length > 0) {
+            mapa.fitBounds(todasLasCoordenadas, { padding: [50, 50] });
+        }
+    }
+
+    function renderizarLista() {
+        const contenedor = document.getElementById('listaParadas');
+        contenedor.innerHTML = '';
+
+        if (paradas.length === 0) {
+            contenedor.innerHTML = '<p style="text-align:center; color:#888; padding:20px;">No has añadido ninguna parada aún.</p>';
+            return;
+        }
+
+        paradas.sort((a, b) => parseInt(a.dia.replace('Día ', '')) - parseInt(b.dia.replace('Día ', '')));
+
+        const porDias = {};
+        paradas.forEach(p => {
+            if (!porDias[p.dia]) porDias[p.dia] = [];
+            porDias[p.dia].push(p);
+        });
+
+        let contadorGlobal = 1;
+
+        for (const dia in porDias) {
+            const grupo = document.createElement('div');
+            grupo.className = 'day-group';
+            grupo.innerHTML = `<div class="day-title"><span>📅 ${dia}</span> <span style="font-size:0.8rem; color:#666; font-weight:normal;">${porDias[dia].length} punto(s)</span></div>`;
+
+            porDias[dia].forEach((item) => {
+                const card = document.createElement('div');
+                card.className = `item-card cat-${item.categoria}`;
+                card.onclick = () => centrarMapaEn(item.lat, item.lng);
+
+                card.innerHTML = `
+                    <span class="item-delete" onclick="eliminarParada(${item.id}, event)">✕</span>
+                    <div class="item-number">${contadorGlobal}</div>
+                    <span class="item-badge badge-${item.categoria}">${nombresCategorias[item.categoria]}</span>
+                    <div class="item-title">${item.nombre}</div>
+                    <div class="item-location">📍 ${item.ubicacion} • <span style="font-size:0.75rem; text-decoration:underline;">Ver en mapa</span></div>
+                    <div class="item-desc"><strong>📝 Desglose / Notas:</strong><br>${item.descripcion}</div>
+                `;
+                grupo.appendChild(card);
+                contadorGlobal++;
+            });
+
+            contenedor.appendChild(grupo);
+        }
+    }
+
+    // FUNCIÓN PARA DESCARGAR EL PDF
+    function descargarPDF() {
+        if (paradas.length === 0) {
+            alert("Añade al menos una parada para poder guardar la ruta en PDF.");
+            return;
+        }
+        window.print();
+    }
+
+    window.onload = () => {
+        inicializarMapa();
+        renderizarLista();
+    };
+</script>
+</body>
+</html>
